@@ -19,23 +19,34 @@ col_spec = cols(
   "Silicon Carbide Production" = col_double(),
   "Titanium Dioxide Production" = col_double()
 )
-emissions <- read_csv("ghgp_data_2021.csv", skip=3, n_max = 6483, col_types = col_spec)
-head(emissions)
+states <- rbind(data.frame(name = state.name, abb = state.abb), c(name = "Puerto Rico", abb = "PR"))
 ```
 
 ```{r}
+state_unit <- Vectorize(function(state) {
+  if (state == "LA") {
+    "parish"
+  } else if (state == "PR") {
+    "municipio"
+  } else {
+    "county"
+  }
+})
+
+special_tracts <- c("hopewell city", "anchorage municipality", 
+                    "aleutians west census area")
+
+emissions <- read_csv("ghgp_data_2021.csv", skip=3, n_max = 6483, col_types = col_spec)
 emissions <- emissions %>%
   drop_na(County) %>%
-  mutate(County = tolower())
+  rename_with(str_to_lower) %>%
+  mutate(emissions.total = `total reported direct emissions`,
+         industry.sector = `industry type (sectors)`,
+         county = str_to_lower(county),
+         county = ifelse((!str_detect(county, "county|municipio|parish") &
+                          !(county %in% special_tracts)), paste(county, state_unit(state)), county)) %>%
+  select(state, county, industry.sector, emissions.total)
 ```
-
-```{r}
-#census_api_key("a6d86325ef5d21aa0b634d38517c5313f5fc6ea4", install = TRUE)
-
-#check to make sure your census key is there:
-Sys.getenv("CENSUS_API_KEY")
-```
-
 
 get census data
 ```{r}
@@ -48,9 +59,33 @@ census_data <- left_join(census_data, code_book)
 #format the data so there is a row for each census tract and column for every variable
 acs_data <- maditr::dcast(census_data, NAME ~ var_name, 
                                value.var = "estimate", 
-                               fun.aggregate = NULL)
+                               fun.aggregate = NULL) %>%
+  rename(county = NAME) %>%
+  separate(col = "county", into = c("county", "state"), sep = ", ") %>%
+  left_join(states, by = c("state" = "name")) %>%
+  mutate(state = abb, county = str_to_lower(county)) %>%
+  select(-abb)
+```
 
-head(acs_data)
+join data
+```{r}
+emissions.joined <- emissions %>% left_join(acs_data, by = c("state","county"))
+head(emissions.joined)
+```
+
+```{r}
+county.emissions <- emissions.joined %>%
+  group_by(county, state) %>%
+  summarize(emissions = sum(emissions.total),
+            household_income = first(household_income),
+            total_population = first(total_population),
+            total_white_population = first(total_white_population))
+```
+
+```{r}
+ggplot(county.emissions, aes(x = log(household_income), y = log1p(emissions), color = total_white_population/total_population)) +
+  geom_point() +
+  labs(x="Log Median Household Income", y="Log Total Emissions from GHGP-Compliant Facilities", color="Proportion White Population", title="Log emissions from large emitters vs. log median household income for US counties")
 ```
 
 
