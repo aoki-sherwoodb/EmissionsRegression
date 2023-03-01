@@ -7,6 +7,7 @@ author: Ben Aoki-Sherwood
 ```{r, include = F}
 knitr::opts_chunk$set(echo = TRUE, message = FALSE)
 library(tidyverse)
+library(tidycensus)
 ```
 
 ```{r}
@@ -26,4 +27,30 @@ emissions <- emissions %>%
   drop_na(County) %>%
   mutate(County = tolower())
 ```
+
+```{r}
+#census_api_key("a6d86325ef5d21aa0b634d38517c5313f5fc6ea4", install = TRUE)
+
+#check to make sure your census key is there:
+Sys.getenv("CENSUS_API_KEY")
+```
+
+
+get census data
+```{r}
+census_data <- get_acs(geography = "county", variables = c("B02001_001E", "B19001_001E","B02001_002E"), year=2021, geometry = F)
+code_book <- rbind(c("B02001_001", "total_population"), c("B19001_001", "household_income"), c("B02001_002", "total_white_population"))
+code_book <- as.data.frame(code_book)
+colnames(code_book) <- c("variable", "var_name")
+census_data <- left_join(census_data, code_book)
+
+#format the data so there is a row for each census tract and column for every variable
+acs_data <- maditr::dcast(census_data, NAME ~ var_name, 
+                               value.var = "estimate", 
+                               fun.aggregate = NULL)
+
+head(acs_data)
+```
+
+
 
