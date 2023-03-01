@@ -20,6 +20,7 @@ col_spec = cols(
   "Titanium Dioxide Production" = col_double()
 )
 emissions <- read_csv("ghgp_data_2021.csv", skip=3, n_max = 6483, col_types = col_spec)
+head(emissions)
 ```
 
 ```{r}
