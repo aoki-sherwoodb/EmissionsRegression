@@ -1,0 +1,29 @@
+---
+title: STAT 230 Homework 8
+output: pdf_document
+author: Ben Aoki-Sherwood
+---
+
+```{r, include = F}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE)
+library(tidyverse)
+```
+
+```{r}
+col_spec = cols(
+  "HCFC–22 Production from HFC–23 Destruction" = col_double(),
+  "Lead Production" = col_double(),
+  "Petroleum and Natural Gas Systems – LNG Storage" = col_double(),
+  "Phosphoric Acid Production" = col_double(),
+  "Silicon Carbide Production" = col_double(),
+  "Titanium Dioxide Production" = col_double()
+)
+emissions <- read_csv("ghgp_data_2021.csv", skip=3, n_max = 6483, col_types = col_spec)
+```
+
+```{r}
+emissions <- emissions %>%
+  drop_na(County) %>%
+  mutate(County = tolower())
+```
+
