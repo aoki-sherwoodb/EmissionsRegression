@@ -8,6 +8,9 @@ author: Ben Aoki-Sherwood
 knitr::opts_chunk$set(echo = TRUE, message = FALSE)
 library(tidyverse)
 library(tidycensus)
+library(ggResidpanel)
+library(GGally)
+library(car)
 ```
 
 ```{r}
@@ -65,7 +68,11 @@ acs_data <- maditr::dcast(census_data, NAME ~ var_name,
   left_join(states, by = c("state" = "name")) %>%
   mutate(state = abb, county = str_to_lower(county)) %>%
   select(-abb)
+
+acs_data <- cbind(acs_data, acs_data$total_white_population/acs_data$total_population)
+colnames(acs_data)[6] <- "prop_pop_white"
 ```
+
 
 join data
 ```{r}
@@ -79,14 +86,33 @@ county.emissions <- emissions.joined %>%
   summarize(emissions = sum(emissions.total),
             household_income = first(household_income),
             total_population = first(total_population),
-            total_white_population = first(total_white_population))
+            total_white_population = first(total_white_population),
+            prop_pop_white = first(prop_pop_white))
 ```
 
 ```{r}
-ggplot(county.emissions, aes(x = log(household_income), y = log1p(emissions), color = total_white_population/total_population)) +
+ggplot(county.emissions, aes(x = log(household_income), y = log1p(emissions), color = prop_pop_white)) +
   geom_point() +
   labs(x="Log Median Household Income", y="Log Total Emissions from GHGP-Compliant Facilities", color="Proportion White Population", title="Log emissions from large emitters vs. log median household income for US counties")
 ```
 
+```{r}
+emissions.lm <- lm(emissions ~ household_income + total_population + prop_pop_white, data = county.emissions)
+summary(emissions.lm)
+resid_xpanel(emissions.lm)
+resid_panel(emissions.lm, plots=c("resid","qq"))
+```
+
+```{r}
+log.emissions.lm <- lm(log(emissions+1) ~ log(household_income) + log(total_population) + prop_pop_white, data = county.emissions)
+summary(log.emissions.lm)
+resid_xpanel(log.emissions.lm)
+resid_panel(log.emissions.lm, plots=c("resid","qq"))
+```
+
+```{r}
+#ggpairs(county.emissions)
+vif(log.emissions.lm)
+```
 
 
