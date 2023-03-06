@@ -155,5 +155,66 @@ elections2 <- elections %>%
 
 ```{r}
 election.emissions <- region.emissions %>% left_join(elections2, by = c("state", "county"))
+head(election.emissions)
 ```
+
+```{r}
+reduced.emissions <- subset(election.emissions, select = -c(1,2))
+#head(reduced.emissions)
+ggpairs(reduced.emissions)
+```
+
+Transform using proportions, logs.
+```{r}
+basic.emissions.lm <- lm(emissions/total_population ~ log(household_income) + prop_pop_white + region + prop_dem, data=election.emissions)
+summary(basic.emissions.lm)
+vif(basic.emissions.lm)
+anova(basic.emissions.lm)
+AIC(basic.emissions.lm)
+```
+
+```{r}
+indicator.emissions.lm <- lm(emissions/total_population ~ log(household_income) + prop_pop_white + region + winning_party, data=election.emissions)
+summary(indicator.emissions.lm)
+vif(indicator.emissions.lm)
+anova(indicator.emissions.lm)
+AIC(indicator.emissions.lm)
+```
+
+
+```{r}
+resid_xpanel(indicator.emissions.lm)
+resid_panel(indicator.emissions.lm, plots=c("resid","qq"))
+```
+
+```{r}
+log.emissions.lm <- lm(log(emissions/total_population+1) ~ log(household_income) + prop_pop_white + region + winning_party, data=election.emissions)
+summary(log.emissions.lm)
+vif(log.emissions.lm)
+anova(log.emissions.lm)
+AIC(log.emissions.lm)
+```
+
+```{r}
+resid_xpanel(log.emissions.lm, smoother=TRUE)
+resid_panel(log.emissions.lm, plots=c("resid","qq"))
+```
+
+```{r}
+sq.income.emissions.lm <- lm(log(emissions/total_population+1) ~ log(household_income) + I(log(household_income)^2) + prop_pop_white + region + winning_party, data=election.emissions)
+summary(sq.income.emissions.lm)
+vif(sq.income.emissions.lm)
+anova(sq.income.emissions.lm)
+AIC(sq.income.emissions.lm)
+```
+
+```{r}
+anova(log.emissions.lm, sq.income.emissions.lm)
+```
+
+```{r}
+resid_xpanel(sq.income.emissions.lm, smoother=TRUE)
+resid_panel(sq.income.emissions.lm, plots=c("resid","qq"))
+```
+
 
