@@ -85,6 +85,7 @@ county.emissions <- emissions.joined %>%
 ```{r}
 ggplot(county.emissions, aes(x = log(household_income), y = log1p(emissions), color = total_white_population/total_population)) +
   geom_point() +
+  geom_smooth(method = "lm") +
   labs(x="Log Median Household Income", y="Log Total Emissions from GHGP-Compliant Facilities", color="Proportion White Population", title="Log emissions from large emitters vs. log median household income for US counties")
 ```
 
