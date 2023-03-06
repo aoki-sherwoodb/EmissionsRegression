@@ -14,32 +14,6 @@ library(car)
 ```
 
 ```{r}
-get_plurality <- function(prop_dem, prop_rep, prop_other) {
-  if (prop_dem > prop_rep & prop_dem > prop_other) {
-    "democrat"
-  } else if (prop_rep > prop_dem & prop_rep > prop_other) {
-    "republican"
-  } else {
-    "other"
-  }
-}
-
-elections <- read_csv("countypres_2000-2020.csv") %>%
-  filter(year == 2020) 
-elections2 <- elections %>%
-  select(c(3,4,8,9,10)) %>%
-  pivot_wider(id_cols = c(state_po, county_name, totalvotes), names_from = party, values_from = candidatevotes, values_fn = sum) %>%
-  group_by(state_po, county_name) %>%
-  replace_na(replace = list(OTHER = 0, GREEN = 0, LIBERTARIAN = 0)) %>%
-  summarize(prop_dem = DEMOCRAT / totalvotes, 
-            prop_rep = REPUBLICAN / totalvotes, 
-            prop_other = (OTHER + GREEN + LIBERTARIAN) / totalvotes, 
-            winning_party = get_plurality(prop_dem, prop_rep, prop_other)) %>%
-  rename(state = state_po, county = county_name)
-```
-
-
-```{r}
 col_spec = cols(
   "HCFC–22 Production from HFC–23 Destruction" = col_double(),
   "Lead Production" = col_double(),
@@ -62,9 +36,6 @@ state_unit <- Vectorize(function(state) {
   }
 })
 
-special_tracts <- c("hopewell city", "anchorage municipality", 
-                    "aleutians west census area")
-
 emissions <- read_csv("ghgp_data_2021.csv", skip=3, n_max = 6483, col_types = col_spec)
 emissions <- emissions %>%
   drop_na(County) %>%
@@ -72,8 +43,7 @@ emissions <- emissions %>%
   mutate(emissions.total = `total reported direct emissions`,
          industry.sector = `industry type (sectors)`,
          county = str_to_lower(county),
-         county = ifelse((!str_detect(county, "county|municipio|parish") &
-                          !(county %in% special_tracts)), paste(county, state_unit(state)), county)) %>%
+         county = ifelse((!str_detect(county, "county|municipio|parish|city|municipality|census area|borough")), paste(county, state_unit(state)), county)) %>%
   select(state, county, industry.sector, emissions.total)
 ```
 
@@ -145,16 +115,45 @@ vif(log.emissions.lm)
 ```{r}
 regions <- data.frame(state=c("AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS",
                               "MO", "MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI",
-                              "WY"), region=c("South","West","West","South","West","West","Northeast","Northeast","South","South","West","West",
+                              "WY", "OK"), region=c("South","West","West","South","West","West","Northeast","Northeast","South","South","West","West",
                               "Midwest","Midwest","Midwest","Midwest","South","South","Northeast","South","Northeast","Midwest","Midwest","South",
                               "Midwest","West","Midwest","West","Northeast","Northeast","West","Northeast","South","Midwest","Midwest","West",
-                              "Northeast","Northeast","South","Midwest","South","South","West","Northeast","South","West","South","Midwest","West"))
+                              "Northeast","Northeast","South","Midwest","South","South","West","Northeast","South","West","South","Midwest","West", "South"))
 ```
 
-
-Used Census-Bereau Designated Regions
+Used Census-Bureau Designated Regions
 ```{r}
 region.emissions <- county.emissions %>% left_join(regions, by = "state")
 head(region.emissions)
+```
+
+```{r}
+get_plurality <- function(prop_dem, prop_rep, prop_other) {
+  if (prop_dem > prop_rep & prop_dem > prop_other) {
+    "democrat"
+  } else if (prop_rep > prop_dem & prop_rep > prop_other) {
+    "republican"
+  } else {
+    "other"
+  }
+}
+
+elections <- read_csv("countypres_2000-2020.csv") %>%
+  filter(year == 2020) 
+elections2 <- elections %>%
+  select(c(3,4,8,9,10)) %>%
+  pivot_wider(id_cols = c(state_po, county_name, totalvotes), names_from = party, values_from = candidatevotes, values_fn = sum) %>%
+  group_by(state_po, county_name) %>%
+  replace_na(replace = list(OTHER = 0, GREEN = 0, LIBERTARIAN = 0)) %>%
+  summarize(prop_dem = DEMOCRAT / totalvotes, 
+            prop_rep = REPUBLICAN / totalvotes, 
+            prop_other = (OTHER + GREEN + LIBERTARIAN) / totalvotes, 
+            winning_party = get_plurality(prop_dem, prop_rep, prop_other)) %>%
+  rename(state = state_po, county = county_name) %>%
+  mutate(county = str_to_lower(ifelse(str_detect(county, "CITY"), county, paste(county, state_unit(state)))))
+```
+
+```{r}
+election.emissions <- region.emissions %>% left_join(elections2, by = c("state", "county"))
 ```
 
