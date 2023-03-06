@@ -14,6 +14,32 @@ library(car)
 ```
 
 ```{r}
+get_plurality <- function(prop_dem, prop_rep, prop_other) {
+  if (prop_dem > prop_rep & prop_dem > prop_other) {
+    "democrat"
+  } else if (prop_rep > prop_dem & prop_rep > prop_other) {
+    "republican"
+  } else {
+    "other"
+  }
+}
+
+elections <- read_csv("countypres_2000-2020.csv") %>%
+  filter(year == 2020) 
+elections2 <- elections %>%
+  select(c(3,4,8,9,10)) %>%
+  pivot_wider(id_cols = c(state_po, county_name, totalvotes), names_from = party, values_from = candidatevotes, values_fn = sum) %>%
+  group_by(state_po, county_name) %>%
+  replace_na(replace = list(OTHER = 0, GREEN = 0, LIBERTARIAN = 0)) %>%
+  summarize(prop_dem = DEMOCRAT / totalvotes, 
+            prop_rep = REPUBLICAN / totalvotes, 
+            prop_other = (OTHER + GREEN + LIBERTARIAN) / totalvotes, 
+            winning_party = get_plurality(prop_dem, prop_rep, prop_other)) %>%
+  rename(state = state_po, county = county_name)
+```
+
+
+```{r}
 col_spec = cols(
   "HCFC–22 Production from HFC–23 Destruction" = col_double(),
   "Lead Production" = col_double(),
