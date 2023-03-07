@@ -11,6 +11,7 @@ library(tidycensus)
 library(ggResidpanel)
 library(GGally)
 library(car)
+library(broom)
 ```
 
 ```{r}
@@ -215,6 +216,46 @@ anova(log.emissions.lm, sq.income.emissions.lm)
 ```{r}
 resid_xpanel(sq.income.emissions.lm, smoother=TRUE)
 resid_panel(sq.income.emissions.lm, plots=c("resid","qq"))
+```
+
+```{r}
+emissions.aug <- augment(sq.income.emissions.lm)
+```
+
+
+```{r}
+r.election.emissions <- election.emissions[-c(1023,139),]
+```
+
+```{r}
+r.sq.income.emissions.lm <- lm(log(emissions/total_population+1) ~ log(household_income) + I(log(household_income)^2) + prop_pop_white + region + winning_party, data=r.election.emissions)
+summary(r.sq.income.emissions.lm)
+vif(r.sq.income.emissions.lm)
+anova(r.sq.income.emissions.lm)
+AIC(r.sq.income.emissions.lm)
+```
+
+```{r}
+resid_xpanel(r.sq.income.emissions.lm, smoother=TRUE)
+resid_panel(r.sq.income.emissions.lm, plots=c("resid","qq"))
+```
+
+```{r}
+r.emissions.lm <- lm(log(emissions+1) ~ log(household_income) + I(log(household_income)^2) + log(1-prop_pop_white) + region + winning_party, data=r.election.emissions)
+summary(r.emissions.lm)
+vif(r.emissions.lm)
+anova(r.emissions.lm)
+AIC(r.emissions.lm)
+```
+
+```{r}
+resid_xpanel(r.emissions.lm, smoother=TRUE)
+resid_panel(r.emissions.lm, plots=c("resid","qq"))
+```
+
+```{r}
+quant.emissions.lm <- lm(log(emissions+1) ~ log(household_income) + I(log(household_income)^2) + log(1-prop_pop_white+0.01), data=r.election.emissions)
+vif(quant.emissions.lm)
 ```
 
 
