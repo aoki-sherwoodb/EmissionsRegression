@@ -88,6 +88,19 @@ county.emissions <- emissions.joined %>%
 ```
 
 ```{r}
+ggplot(county.emissions, aes(x = household_income, y = emissions)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+```
+
+```{r}
+ggplot(county.emissions, aes(x = prop_pop_white, y = emissions)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+```
+
+
+```{r}
 ggplot(county.emissions, aes(x = log(household_income), y = log1p(emissions), color = prop_pop_white)) +
   geom_point() +
   geom_smooth(method = "lm") +
@@ -95,24 +108,12 @@ ggplot(county.emissions, aes(x = log(household_income), y = log1p(emissions), co
 ```
 
 ```{r}
-emissions.lm <- lm(emissions ~ household_income + total_population + prop_pop_white, data = county.emissions)
-summary(emissions.lm)
-resid_xpanel(emissions.lm)
-resid_panel(emissions.lm, plots=c("resid","qq"))
+ggplot(county.emissions, aes(x = prop_pop_white, y = log1p(emissions))) +
+  geom_point() +
+  geom_smooth(method = "lm")
 ```
 
-```{r}
-log.emissions.lm <- lm(log(emissions+1) ~ log(household_income) + log(total_population) + prop_pop_white, data = county.emissions)
-summary(log.emissions.lm)
-resid_xpanel(log.emissions.lm)
-resid_panel(log.emissions.lm, plots=c("resid","qq"))
-```
-
-```{r}
-#ggpairs(county.emissions)
-vif(log.emissions.lm)
-```
-
+Assign each state to a region of the country
 ```{r}
 regions <- data.frame(state=c("AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS",
                               "MO", "MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI",
@@ -161,100 +162,74 @@ head(election.emissions)
 
 ```{r}
 reduced.emissions <- subset(election.emissions, select = -c(1,2))
-#head(reduced.emissions)
 ggpairs(reduced.emissions)
 ```
 
-Transform using proportions, logs.
+Remove outliers
+- Loving county Texas, tiny population and household income, massive emissions
+- Billings county, ND, fully white population
 ```{r}
-basic.emissions.lm <- lm(emissions/total_population ~ log(household_income) + prop_pop_white + region + prop_dem, data=election.emissions)
+r.election.emissions <- election.emissions[-c(1023,139),]
+```
+
+
+Fit first model using proportion of county that voted democrat
+```{r}
+basic.emissions.lm <- lm(log1p(emissions) ~ log(household_income) + log(1-prop_pop_white) + region + prop_dem, data=r.election.emissions)
 summary(basic.emissions.lm)
 vif(basic.emissions.lm)
 anova(basic.emissions.lm)
 AIC(basic.emissions.lm)
 ```
 
+Fit second model using county winning party instead of democrat proportion for comparison
 ```{r}
-indicator.emissions.lm <- lm(emissions/total_population ~ log(household_income) + prop_pop_white + region + winning_party, data=election.emissions)
+indicator.emissions.lm <- lm(log1p(emissions) ~ log(household_income) + log(1-prop_pop_white) + region + winning_party, data=r.election.emissions)
 summary(indicator.emissions.lm)
 vif(indicator.emissions.lm)
 anova(indicator.emissions.lm)
 AIC(indicator.emissions.lm)
 ```
 
-
+Fit residual plots to check assumptions
 ```{r}
-resid_xpanel(indicator.emissions.lm)
-resid_panel(indicator.emissions.lm, plots=c("resid","qq"))
+resid_xpanel(basic.emissions.lm, smoother=TRUE)
+resid_panel(basic.emissions.lm, plots=c("resid","qq"))
 ```
-
+Add a squared household income term as is slightly indicated in above plots
 ```{r}
-log.emissions.lm <- lm(log(emissions/total_population+1) ~ log(household_income) + prop_pop_white + region + winning_party, data=election.emissions)
-summary(log.emissions.lm)
-vif(log.emissions.lm)
-anova(log.emissions.lm)
-AIC(log.emissions.lm)
-```
-
-```{r}
-resid_xpanel(log.emissions.lm, smoother=TRUE)
-resid_panel(log.emissions.lm, plots=c("resid","qq"))
-```
-
-```{r}
-sq.income.emissions.lm <- lm(log(emissions/total_population+1) ~ log(household_income) + I(log(household_income)^2) + prop_pop_white + region + winning_party, data=election.emissions)
+sq.income.emissions.lm <- lm(log1p(emissions) ~ log(household_income) + I(log(household_income)^2) + log(1-prop_pop_white) + region + prop_dem, data=r.election.emissions)
 summary(sq.income.emissions.lm)
 vif(sq.income.emissions.lm)
 anova(sq.income.emissions.lm)
 AIC(sq.income.emissions.lm)
 ```
 
+Test significance of adding the quadratic term
 ```{r}
-anova(log.emissions.lm, sq.income.emissions.lm)
+anova(basic.emissions.lm, sq.income.emissions.lm)
 ```
-
+Create residual panels to check assumptions
 ```{r}
 resid_xpanel(sq.income.emissions.lm, smoother=TRUE)
 resid_panel(sq.income.emissions.lm, plots=c("resid","qq"))
 ```
 
+
+Check confidence intervals for variables
 ```{r}
-emissions.aug <- augment(sq.income.emissions.lm)
+confint(sq.income.emissions.lm)
 ```
 
-
+Check to see if region (area of the country) has a significant effect on the model
 ```{r}
-r.election.emissions <- election.emissions[-c(1023,139),]
+no.region.lm <- lm(log1p(emissions) ~ log(household_income) + I(log(household_income)^2) + log(1-prop_pop_white) + prop_dem, data=r.election.emissions)
+anova(no.region.lm, sq.income.emissions.lm)
 ```
 
+Check VIF of quantitative variables to assess collinearity
 ```{r}
-r.sq.income.emissions.lm <- lm(log(emissions/total_population+1) ~ log(household_income) + I(log(household_income)^2) + prop_pop_white + region + winning_party, data=r.election.emissions)
-summary(r.sq.income.emissions.lm)
-vif(r.sq.income.emissions.lm)
-anova(r.sq.income.emissions.lm)
-AIC(r.sq.income.emissions.lm)
-```
-
-```{r}
-resid_xpanel(r.sq.income.emissions.lm, smoother=TRUE)
-resid_panel(r.sq.income.emissions.lm, plots=c("resid","qq"))
-```
-
-```{r}
-r.emissions.lm <- lm(log(emissions+1) ~ log(household_income) + I(log(household_income)^2) + log(1-prop_pop_white) + region + winning_party, data=r.election.emissions)
-summary(r.emissions.lm)
-vif(r.emissions.lm)
-anova(r.emissions.lm)
-AIC(r.emissions.lm)
-```
-
-```{r}
-resid_xpanel(r.emissions.lm, smoother=TRUE)
-resid_panel(r.emissions.lm, plots=c("resid","qq"))
-```
-
-```{r}
-quant.emissions.lm <- lm(log(emissions+1) ~ log(household_income) + I(log(household_income)^2) + log(1-prop_pop_white+0.01), data=r.election.emissions)
+quant.emissions.lm <- lm(log(emissions+1) ~ log(household_income) + log(1-prop_pop_white) + prop_dem, data=r.election.emissions)
 vif(quant.emissions.lm)
 ```
 
