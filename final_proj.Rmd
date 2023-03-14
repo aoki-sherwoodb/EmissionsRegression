@@ -198,36 +198,15 @@ resid_xpanel(basic.emissions.lm, smoother=TRUE)
 resid_panel(basic.emissions.lm, plots=c("resid","qq"))
 ```
 
-Add a squared household income term as is slightly indicated in above plots
-```{r}
-sq.income.emissions.lm <- lm(log1p(emissions) ~ log(household_income) + I(log(household_income)^2) + log(1-prop_pop_white) + region + prop_dem, data=r.election.emissions)
-summary(sq.income.emissions.lm)
-vif(sq.income.emissions.lm)
-anova(sq.income.emissions.lm)
-AIC(sq.income.emissions.lm)
-```
-
-Test significance of adding the quadratic term
-```{r}
-anova(basic.emissions.lm, sq.income.emissions.lm)
-```
-
-Create residual panels to check assumptions
-```{r}
-resid_xpanel(sq.income.emissions.lm, smoother=TRUE)
-resid_panel(sq.income.emissions.lm, plots=c("resid","qq"))
-```
-
-
 Check confidence intervals for variables
 ```{r}
-confint(sq.income.emissions.lm)
+confint(basic.emissions.lm)
 ```
 
 Check to see if region (area of the country) has a significant effect on the model
 ```{r}
-no.region.lm <- lm(log1p(emissions) ~ log(household_income) + I(log(household_income)^2) + log(1-prop_pop_white) + prop_dem, data=r.election.emissions)
-anova(no.region.lm, sq.income.emissions.lm)
+no.region.lm <- lm(log1p(emissions) ~ log(household_income) + log(1-prop_pop_white) + prop_dem, data=r.election.emissions)
+anova(no.region.lm, basic.emissions.lm)
 ```
 
 Check VIF of quantitative variables to assess collinearity
